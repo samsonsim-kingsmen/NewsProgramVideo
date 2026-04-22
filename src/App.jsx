@@ -12,6 +12,7 @@ export default function App() {
   const mouseStart = useRef(null);
   const isMouseDragging = useRef(false);
   const glitchRef = useRef(null);
+  const playerRef = useRef(null);
 
   useEffect(() => {
     let raf;
@@ -57,9 +58,22 @@ export default function App() {
     [],
   );
 
-  const next = () => setActiveIndex((i) => (i + 1) % videos.length);
-  const prev = () =>
+  const next = () => {
+    setActiveIndex((i) => (i + 1) % videos.length);
+  };
+
+  const prev = () => {
     setActiveIndex((i) => (i - 1 + videos.length) % videos.length);
+  };
+
+  useEffect(() => {
+    if (screen !== "player") return;
+    const v = playerRef.current;
+    if (!v) return;
+
+    v.currentTime = 0;
+    v.play().catch(() => {});
+  }, [screen, activeIndex]);
 
   const triggerGlitch = (callback) => {
     setShowGlitch(true);
@@ -93,13 +107,13 @@ export default function App() {
   const handleSwipe = (delta) => {
     if (screen === "landing" && delta > 120) {
       triggerGlitch(() => setScreen("gallery"));
+      return;
     }
 
     if (screen === "player") {
       if (delta > 120) {
         triggerGlitch(() => next());
-      }
-      if (delta < -120) {
+      } else if (delta < -120) {
         prev();
       }
     }
@@ -114,6 +128,7 @@ export default function App() {
   const onTouchMove = (e) => {
     if (screen === "gallery") return;
     if (touchStart.current == null) return;
+
     const delta = touchStart.current - e.touches[0].clientY;
     const limited = Math.max(Math.min(-delta * 0.35, 120), -120);
     setDragOffset(limited);
@@ -122,6 +137,7 @@ export default function App() {
   const onTouchEnd = (e) => {
     if (screen === "gallery") return;
     if (touchStart.current == null) return;
+
     const delta = touchStart.current - e.changedTouches[0].clientY;
     handleSwipe(delta);
     touchStart.current = null;
@@ -139,6 +155,7 @@ export default function App() {
   const onMouseMove = (e) => {
     if (screen === "gallery") return;
     if (!isMouseDragging.current || mouseStart.current == null) return;
+
     const delta = mouseStart.current - e.clientY;
     const limited = Math.max(Math.min(-delta * 0.35, 120), -120);
     setDragOffset(limited);
@@ -152,7 +169,9 @@ export default function App() {
       setIsDragging(false);
       return;
     }
+
     if (!isMouseDragging.current || mouseStart.current == null) return;
+
     const delta = mouseStart.current - e.clientY;
     handleSwipe(delta);
     mouseStart.current = null;
@@ -327,10 +346,12 @@ export default function App() {
                   >
                     <img
                       src={v.thumbnail}
+                      alt={v.title}
                       style={{
                         width: "100%",
                         height: "100%",
                         objectFit: "cover",
+                        display: "block",
                       }}
                     />
                   </div>
@@ -345,9 +366,17 @@ export default function App() {
         {screen === "player" && (
           <div style={{ position: "absolute", inset: 0 }}>
             <video
+              key={videos[activeIndex].src}
+              ref={playerRef}
               src={videos[activeIndex].src}
               autoPlay
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              playsInline
+              controls={false}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
             />
 
             <div
@@ -415,7 +444,12 @@ export default function App() {
             </div>
 
             <div
-              style={{ position: "absolute", bottom: 20, left: 20, zIndex: 20 }}
+              style={{
+                position: "absolute",
+                bottom: 20,
+                left: 20,
+                zIndex: 20,
+              }}
             >
               {videos.map((v, i) => (
                 <div
