@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 export default function App() {
-  const [tick, setTick] = useState(0);
   const [screen, setScreen] = useState("landing");
   const [activeIndex, setActiveIndex] = useState(0);
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [showGlitch, setShowGlitch] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
 
   const touchStart = useRef(null);
   const mouseStart = useRef(null);
@@ -15,13 +15,20 @@ export default function App() {
   const playerRef = useRef(null);
 
   useEffect(() => {
-    let raf;
-    const loop = () => {
-      setTick((t) => t + 1);
-      raf = requestAnimationFrame(loop);
+    const setAppHeight = () => {
+      const h = window.visualViewport?.height || window.innerHeight;
+      setViewportHeight(h);
     };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
+
+    setAppHeight();
+
+    window.addEventListener("resize", setAppHeight);
+    window.visualViewport?.addEventListener("resize", setAppHeight);
+
+    return () => {
+      window.removeEventListener("resize", setAppHeight);
+      window.visualViewport?.removeEventListener("resize", setAppHeight);
+    };
   }, []);
 
   const videos = useMemo(
@@ -180,118 +187,147 @@ export default function App() {
     setIsDragging(false);
   };
 
+  const appFrameStyle = {
+    width: Math.min(window.innerWidth, viewportHeight * (4 / 3)),
+    height: Math.min(viewportHeight, window.innerWidth * (3 / 4)),
+    aspectRatio: "4 / 3",
+    background: "#001133",
+    backgroundImage:
+      "repeating-linear-gradient(to bottom, rgba(255,255,255,0.12) 0px, rgba(255,255,255,0.12) 1px, rgba(0,0,0,0) 1px, rgba(0,0,0,0) 4px)",
+    position: "relative",
+    overflow: "hidden",
+    color: "white",
+    fontFamily: "sans-serif",
+    transform: `translateY(${dragOffset}px)`,
+    transition: isDragging ? "none" : "transform 0.22s ease",
+  };
+
+  const arrowWrapStyle = {
+    position: "absolute",
+    top: 28,
+    left: "50%",
+    transform: "translateX(-50%)",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 20,
+  };
+
+  const arrowStyle = {
+    fontSize: 34,
+    lineHeight: 1,
+    marginBottom: 8,
+    animation: "arrowFloat 0.9s ease-in-out infinite",
+    willChange: "transform",
+  };
+
   return (
-    <div
-      onMouseMove={onMouseMove}
-      onMouseUp={onMouseUp}
-      style={{
-        width: "100vw",
-        height: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#000",
-      }}
-    >
+    <>
+      <style>{`
+        @keyframes arrowFloat {
+          0% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+          100% { transform: translateY(0px); }
+        }
+      `}</style>
+
       <div
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onMouseDown={onMouseDown}
-        onMouseLeave={onMouseUp}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
         style={{
-          width: "min(100vw, calc(100vh * (4/3)))",
-          height: "min(100vh, calc(100vw * (3/4)))",
-          aspectRatio: "4/3",
-          background: "#001133",
-          backgroundImage:
-            "repeating-linear-gradient(to bottom, rgba(255,255,255,0.12) 0px, rgba(255,255,255,0.12) 1px, rgba(0,0,0,0) 1px, rgba(0,0,0,0) 4px)",
-          position: "relative",
+          width: "100vw",
+          height: `${viewportHeight}px`,
+          background: "#000",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           overflow: "hidden",
-          color: "white",
-          fontFamily: "sans-serif",
-          transform: `translateY(${dragOffset}px)`,
-          transition: isDragging ? "none" : "transform 0.28s ease",
+          position: "fixed",
+          inset: 0,
         }}
       >
-        {showGlitch && (
-          <video
-            ref={glitchRef}
-            src="/videos/glitch.mp4"
-            muted
-            playsInline
-            autoPlay
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              zIndex: 50,
-              pointerEvents: "none",
-              opacity: 0.45,
-              mixBlendMode: "screen",
-            }}
-          />
-        )}
-
-        {(screen === "gallery" || screen === "player") && (
-          <div
-            onClick={() => setScreen("landing")}
-            style={{
-              position: "absolute",
-              top: 20,
-              right: 20,
-              zIndex: 10,
-              padding: "8px 12px",
-              border: "1px solid rgba(255,255,255,0.4)",
-              background: "rgba(0,0,0,0.6)",
-              fontSize: 12,
-              cursor: "pointer",
-            }}
-          >
-            BACK
-          </div>
-        )}
-
-        {screen === "landing" && (
-          <div style={{ position: "absolute", inset: 0 }}>
-            <div
+        <div
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          onMouseDown={onMouseDown}
+          onMouseLeave={onMouseUp}
+          style={appFrameStyle}
+        >
+          {showGlitch && (
+            <video
+              ref={glitchRef}
+              src="/videos/glitch.mp4"
+              muted
+              playsInline
+              autoPlay
               style={{
                 position: "absolute",
-                top: 28,
-                left: "50%",
-                transform: "translateX(-50%)",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 2,
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                zIndex: 50,
+                pointerEvents: "none",
+                opacity: 0.45,
+                mixBlendMode: "screen",
+              }}
+            />
+          )}
+
+          {(screen === "gallery" || screen === "player") && (
+            <div
+              onClick={() => setScreen("landing")}
+              style={{
+                position: "absolute",
+                top: 20,
+                right: 20,
+                zIndex: 30,
+                padding: "8px 12px",
+                border: "1px solid rgba(255,255,255,0.4)",
+                background: "rgba(0,0,0,0.6)",
+                fontSize: 12,
+                cursor: "pointer",
               }}
             >
-              <div
-                style={{
-                  fontSize: 34,
-                  lineHeight: 1,
-                  marginBottom: 8,
-                  transform: `translateY(${Math.sin(tick / 20) * -8}px)`,
-                  transition: "transform 0.12s linear",
-                }}
-              >
-                ˄
+              BACK
+            </div>
+          )}
+
+          {screen === "landing" && (
+            <div style={{ position: "absolute", inset: 0 }}>
+              <div style={{ ...arrowWrapStyle, zIndex: 2 }}>
+                <div style={arrowStyle}>˄</div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                    textTransform: "uppercase",
+                    opacity: 0.8,
+                  }}
+                >
+                  Swipe up to view more
+                </div>
               </div>
+
               <div
                 style={{
-                  fontSize: 12,
-                  letterSpacing: 0.5,
-                  textTransform: "uppercase",
-                  opacity: 0.8,
+                  position: "absolute",
+                  inset: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexDirection: "column",
                 }}
               >
-                Swipe up to view more
+                <h1>ARCHIVE</h1>
+                <p>CRT monitor experience</p>
               </div>
             </div>
+          )}
 
+          {screen === "gallery" && (
             <div
               style={{
                 position: "absolute",
@@ -299,173 +335,137 @@ export default function App() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                flexDirection: "column",
               }}
             >
-              <h1>ARCHIVE</h1>
-              <p>CRT monitor experience</p>
-            </div>
-          </div>
-        )}
-
-        {screen === "gallery" && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 125,
-                rowGap: 110,
-                width: "75%",
-              }}
-            >
-              {videos.map((v, i) => (
-                <div
-                  key={v.id}
-                  onClick={() => {
-                    setActiveIndex(i);
-                    setScreen("player");
-                  }}
-                  style={{ cursor: "pointer" }}
-                >
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 125,
+                  rowGap: 110,
+                  width: "75%",
+                }}
+              >
+                {videos.map((v, i) => (
                   <div
+                    key={v.id}
+                    onClick={() => {
+                      setActiveIndex(i);
+                      setScreen("player");
+                    }}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <div
+                      style={{
+                        aspectRatio: "16/9",
+                        overflow: "hidden",
+                        marginBottom: 6,
+                        border: "1px solid rgba(255,255,255,0.2)",
+                      }}
+                    >
+                      <img
+                        src={v.thumbnail}
+                        alt={v.title}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          display: "block",
+                        }}
+                      />
+                    </div>
+                    <div style={{ fontSize: 14 }}>{v.title}</div>
+                    <div style={{ fontSize: 11, opacity: 0.6 }}>
+                      {v.subtitle}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {screen === "player" && (
+            <div style={{ position: "absolute", inset: 0 }}>
+              <video
+                key={videos[activeIndex].src}
+                ref={playerRef}
+                src={videos[activeIndex].src}
+                autoPlay
+                playsInline
+                controls={false}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
+              />
+
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: "22%",
+                  background:
+                    "linear-gradient(to bottom, rgba(0,0,0,0.85), rgba(0,0,0,0))",
+                  pointerEvents: "none",
+                  zIndex: 5,
+                }}
+              />
+
+              <div
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: "28%",
+                  background:
+                    "linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0))",
+                  pointerEvents: "none",
+                  zIndex: 5,
+                }}
+              />
+
+              <div style={arrowWrapStyle}>
+                <div style={arrowStyle}>˄</div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                    textTransform: "uppercase",
+                    opacity: 0.8,
+                  }}
+                >
+                  Swipe up to see next
+                </div>
+              </div>
+
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 20,
+                  left: 20,
+                  zIndex: 20,
+                }}
+              >
+                {videos.map((v, i) => (
+                  <div
+                    key={v.id}
                     style={{
-                      aspectRatio: "16/9",
-                      overflow: "hidden",
-                      marginBottom: 6,
-                      border: "1px solid rgba(255,255,255,0.2)",
+                      color: i === activeIndex ? "white" : "gray",
+                      fontSize: i === activeIndex ? 20 : 14,
                     }}
                   >
-                    <img
-                      src={v.thumbnail}
-                      alt={v.title}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                        display: "block",
-                      }}
-                    />
+                    {v.title}
                   </div>
-                  <div style={{ fontSize: 14 }}>{v.title}</div>
-                  <div style={{ fontSize: 11, opacity: 0.6 }}>{v.subtitle}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {screen === "player" && (
-          <div style={{ position: "absolute", inset: 0 }}>
-            <video
-              key={videos[activeIndex].src}
-              ref={playerRef}
-              src={videos[activeIndex].src}
-              autoPlay
-              playsInline
-              controls={false}
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-              }}
-            />
-
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                height: "22%",
-                background:
-                  "linear-gradient(to bottom, rgba(0,0,0,0.85), rgba(0,0,0,0))",
-                pointerEvents: "none",
-                zIndex: 5,
-              }}
-            />
-
-            <div
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: "28%",
-                background:
-                  "linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0))",
-                pointerEvents: "none",
-                zIndex: 5,
-              }}
-            />
-
-            <div
-              style={{
-                position: "absolute",
-                top: 28,
-                left: "50%",
-                transform: "translateX(-50%)",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 20,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 34,
-                  lineHeight: 1,
-                  marginBottom: 8,
-                  transform: `translateY(${Math.sin(tick / 20) * -8}px)`,
-                  transition: "transform 0.12s linear",
-                }}
-              >
-                ˄
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  letterSpacing: 0.5,
-                  textTransform: "uppercase",
-                  opacity: 0.8,
-                }}
-              >
-                Swipe up to see next
+                ))}
               </div>
             </div>
-
-            <div
-              style={{
-                position: "absolute",
-                bottom: 20,
-                left: 20,
-                zIndex: 20,
-              }}
-            >
-              {videos.map((v, i) => (
-                <div
-                  key={v.id}
-                  style={{
-                    color: i === activeIndex ? "white" : "gray",
-                    fontSize: i === activeIndex ? 20 : 14,
-                  }}
-                >
-                  {v.title}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
